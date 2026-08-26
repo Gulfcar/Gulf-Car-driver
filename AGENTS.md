@@ -5,3 +5,7 @@ For Arabic text on iOS React Native, keep `writingDirection: 'rtl'` but use `tex
 # Layout ownership rule
 
 When asked to remove side space around cards, change the parent list/container gutter only. Do not change the cards' own width, margins, padding, radius, borders, or shadows unless explicitly requested.
+
+# Platform and OTA rule
+
+This project currently targets iOS only. For production OTA updates, publish with `eas update --channel production --environment production --platform ios`; skip Android and web checks unless explicitly requested.

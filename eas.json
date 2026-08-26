@@ -17,7 +17,8 @@
     "production": {
       "pnpm": "10.8.0",
       "channel": "production",
-      "distribution": "internal",
+      "environment": "production",
+      "distribution": "store",
       "autoIncrement": true
     }
   },

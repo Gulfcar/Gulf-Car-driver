@@ -160,4 +160,10 @@
   ,"trackingInterval": "Tracking Interval", "trackingIntervalDescription": "Update frequency in seconds"
   ,"unexpectedError": "Something went wrong"
   ,"tryAgain": "Try again"
+  ,"loading": "Loading"
+  ,"route": "Route"
+  ,"ready": "Ready"
+  ,"findingBestRoute": "Finding the best route"
+  ,"aligningCamera": "Locking onto your location"
+  ,"almostThere": "Almost ready to go"
 }

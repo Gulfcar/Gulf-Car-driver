@@ -1,18 +1,19 @@
 import React from 'react';
-import { ActivityIndicator, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, I18nManager, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Constants from 'expo-constants';
 import MapView, { Marker, PROVIDER_GOOGLE, type UserLocationChangeEvent } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import * as ExpoLocation from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { notifyNewMovementRequest } from '../lib/notifications';
-import { Archive, Arrow, Bell, Clock, Location, MapAlt, Power, TickCircle, WifiOff } from 'reicon-react-native';
+import { Archive, Arrow, Bell, Location, MapAlt, Power, WifiOff } from 'reicon-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type Order } from '../lib/orders';
 import { useAttendanceStateQuery, useAttendanceToggleMutation, useMovementRequestsQuery } from '../lib/auth';
 import { i18n } from '../lib/i18n';
 import { useAppLanguage } from '../lib/onboarding';
+import MapboxEmbeddedNavigationView from '../lib/MapboxEmbeddedNavigationView';
 
 const MAP_STYLE = [
   { elementType: 'geometry', stylers: [{ color: '#eaf2ee' }] },
@@ -34,6 +35,7 @@ const HomeScreen = React.memo(function HomeScreen() {
   const nativeLocationCentered = React.useRef(false);
   const [locationRegion, setLocationRegion] = React.useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
   const [focusedRoute, setFocusedRoute] = React.useState<Order | null>(null);
+  const [navReady, setNavReady] = React.useState(false);
   const requests = useMovementRequestsQuery('active');
   const attendance = useAttendanceStateQuery();
   const attendanceToggle = useAttendanceToggleMutation();
@@ -64,7 +66,16 @@ const HomeScreen = React.memo(function HomeScreen() {
     fromCoordinate: { latitude: request.pickup.lat, longitude: request.pickup.lng },
     toCoordinate: { latitude: request.dropoff.lat, longitude: request.dropoff.lng },
   })), [language, requests.data]);
-  const displayedAssigned = assigned;
+  const displayedAssigned = assigned.length ? assigned : [{
+    id: -1,
+    status: 'assigned' as const,
+    name: 'عبدالله العتيبي',
+    time: '18:00',
+    from: 'مطار الملك خالد الدولي، الرياض',
+    to: 'مركز الملك عبدالله المالي، الرياض',
+    fromCoordinate: { latitude: 24.9576, longitude: 46.6988 },
+    toCoordinate: { latitude: 24.7672, longitude: 46.6293 },
+  }];
   const firstRoute = focusedRoute;
   const googleMapsApiKey = Constants.expoConfig?.extra?.googleMapsApiKey;
   const todayLabel = new Intl.DateTimeFormat(language === 'ar' ? 'ar' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
@@ -97,11 +108,8 @@ const HomeScreen = React.memo(function HomeScreen() {
     mapRef.current?.animateCamera({ center: region, zoom: 18 }, { duration: 500 });
   }, [focusedRoute]);
   const focusRoute = React.useCallback((order: Order) => {
+    setNavReady(false);
     setFocusedRoute(order);
-    mapRef.current?.fitToCoordinates([order.fromCoordinate, order.toCoordinate], {
-      edgePadding: { top: 80, right: 48, bottom: 180, left: 48 },
-      animated: true,
-    });
   }, []);
   const fitRoute = React.useCallback((coordinates: { latitude: number; longitude: number }[]) => {
     mapRef.current?.fitToCoordinates(coordinates, { edgePadding: { top: 80, right: 48, bottom: 180, left: 48 }, animated: true });
@@ -186,6 +194,16 @@ const HomeScreen = React.memo(function HomeScreen() {
               <RouteBadge type="to" />
             </Marker> : null}
           </MapView>
+          {firstRoute ? <MapboxEmbeddedNavigationView
+            key={firstRoute.id}
+            style={StyleSheet.absoluteFill}
+            originLat={firstRoute.fromCoordinate.latitude}
+            originLng={firstRoute.fromCoordinate.longitude}
+            destinationLat={firstRoute.toCoordinate.latitude}
+            destinationLng={firstRoute.toCoordinate.longitude}
+            simulation={firstRoute.id === -1}
+            onNavigationReady={() => setNavReady(true)}
+          /> : null}
           <LinearGradient
             pointerEvents="none"
             colors={[
@@ -224,6 +242,7 @@ const HomeScreen = React.memo(function HomeScreen() {
             dither
             style={StyleSheet.absoluteFill}
           />
+          {firstRoute ? <RouteLoadingVeil ready={navReady} /> : null}
         </View>
         <View style={[styles.onlineButtonAnchor, !isOnline && styles.onlineButtonAnchorCentered]} pointerEvents="box-none">
           <Pressable
@@ -242,7 +261,8 @@ const HomeScreen = React.memo(function HomeScreen() {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} directionalLockEnabled contentContainerStyle={styles.cards} style={styles.cardsViewport}>
         <View style={styles.cardsRow}>
-          {assigned.length ? <>{assigned.map((order, index) => <VisitCard key={`${order.id ?? order.name}-${index}`} width={width - 68} {...order} onPress={() => focusRoute(order)} />)}<EmptyRideCard width={width - 68} /></> : <EmptyRideCard width={width - 68} />}
+          {displayedAssigned.map((order, index) => <VisitCard key={`${order.id ?? order.name}-${index}`} width={width - 68} {...order} onPress={() => focusRoute(order)} />)}
+          {!!displayedAssigned.length && <EmptyRideCard width={width - 68} />}
         </View>
       </ScrollView>
       <View style={styles.weekHeader}>
@@ -263,28 +283,13 @@ const HomeScreen = React.memo(function HomeScreen() {
 
 export default HomeScreen;
 
-function VisitCard({ width, name, time, from, to, fromCoordinate, toCoordinate, status = 'assigned', onPress }: Order & { width: number; status?: 'assigned' | 'in_progress' | 'completed' | 'cancelled'; onPress?: () => void }) {
-  const completed = status === 'completed';
-  const statusColor = completed ? '#67C587' : '#D99A4A';
+function VisitCard({ width, name, from, to, fromCoordinate, toCoordinate, onPress }: Order & { width: number; onPress?: () => void }) {
   const openRoute = () => Linking.openURL(`https://www.google.com/maps/dir/?api=1&origin=${fromCoordinate.latitude},${fromCoordinate.longitude}&destination=${toCoordinate.latitude},${toCoordinate.longitude}&travelmode=driving`);
 
   return (
     <Pressable onPress={onPress} style={[styles.visitCard, { width }]}>
       <View pointerEvents="none" style={styles.cardInnerBlackStroke} />
       <View pointerEvents="none" style={styles.cardInnerWhiteStroke} />
-      <View style={styles.visitHeader}>
-        <View style={styles.visitNameGroup}>
-          <Text style={styles.visitName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} maxFontSizeMultiplier={1.2}>{name}</Text>
-          <View style={styles.visitStatusRow}>
-            {completed ? <TickCircle size={14} color={statusColor} weight="Outline" /> : <Archive size={14} color={statusColor} weight="Outline" />}
-            <Text style={[styles.visitStatus, { color: statusColor }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} maxFontSizeMultiplier={1.2}>{i18n.t(status === 'in_progress' ? 'inProgress' : status)}</Text>
-          </View>
-        </View>
-        <View style={styles.visitTimeRow}>
-          <Clock size={15} color="#C89A63" weight="Outline" />
-          <Text style={styles.visitTime} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} maxFontSizeMultiplier={1.2}>{time}</Text>
-        </View>
-      </View>
       <View style={styles.route}>
         <View style={styles.routeStops}>
           <View style={styles.routeStopRow}>
@@ -301,6 +306,7 @@ function VisitCard({ width, name, time, from, to, fromCoordinate, toCoordinate, 
           <MapAlt size={19} color="#1A1612" weight="Outline" />
         </Pressable>
       </View>
+      <Text style={[styles.visitNameBottom, I18nManager.isRTL ? styles.visitNameBottomRtl : styles.visitNameBottomLtr]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} maxFontSizeMultiplier={1.2}>{name}</Text>
     </Pressable>
   );
 }
@@ -309,6 +315,35 @@ function getGreetingKey(hour: number) {
   if (hour < 12) return 'greetingMorning';
   if (hour < 18) return 'greetingAfternoon';
   return 'greetingEvening';
+}
+
+function RouteLoadingVeil({ ready }: { ready: boolean }) {
+  if (ready) return null;
+  return (
+    <View pointerEvents="none" style={styles.routeVeil}>
+      <ActivityIndicator size="large" color="#C89A63" />
+      <RouteLoadingWords />
+    </View>
+  );
+}
+
+class RouteLoadingWords extends React.PureComponent<{}, { index: number }> {
+  state = { index: 0 };
+  private timer?: ReturnType<typeof setInterval>;
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      this.setState(({ index }) => ({ index: (index + 1) % 3 }));
+    }, 1200);
+  }
+
+  componentWillUnmount() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  render() {
+    return <Text style={styles.routeVeilStep}>{i18n.t(['loading', 'route', 'ready'][this.state.index])}</Text>;
+  }
 }
 
 function getCurrentWeekLabel(language: 'ar' | 'en') {
@@ -373,12 +408,6 @@ const styles = StyleSheet.create({
   visitCard: { height: 190, borderRadius: 16, backgroundColor: '#211C16', paddingHorizontal: 16, paddingVertical: 15, shadowColor: '#000000', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
   cardInnerBlackStroke: { position: 'absolute', top: 1, right: 1, bottom: 1, left: 1, borderWidth: 1, borderColor: 'rgba(0,0,0,0.18)', borderRadius: 15 },
   cardInnerWhiteStroke: { position: 'absolute', top: 2, right: 2, bottom: 2, left: 2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', borderRadius: 14 },
-  visitHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 },
-  visitNameGroup: { flex: 1 },
-  visitStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
-  visitStatus: { color: '#D99A4A', fontSize: 12, fontWeight: '700', textAlign: 'left', flexShrink: 1 },
-  visitTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  visitTime: { color: '#E8DED2', fontSize: 15, lineHeight: 21, fontWeight: '700', flexShrink: 1 },
   route: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10 },
   routeStops: { flex: 1, gap: 20 },
   routeStopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -392,7 +421,9 @@ const styles = StyleSheet.create({
   routeOrigin: { flex: 1, color: '#A99E92', fontSize: 14, lineHeight: 19, textAlign: 'left', flexShrink: 1 },
   routeDestination: { flex: 1, color: '#E8DED2', fontSize: 15, lineHeight: 20, fontWeight: '700', textAlign: 'left', flexShrink: 1 },
   routeButton: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#C89A63', alignItems: 'center', justifyContent: 'center' },
-  visitName: { color: '#F7F1E9', fontSize: 17, lineHeight: 21, fontWeight: '700', textAlign: 'left' },
+  visitNameBottom: { position: 'absolute', top: 12, maxWidth: '70%', color: '#F7F1E9', fontSize: 15, lineHeight: 19, fontWeight: '700', writingDirection: 'ltr', textAlign: 'right' },
+  visitNameBottomLtr: { right: 16 },
+  visitNameBottomRtl: { left: 16 },
   emptyRideCard: { minHeight: 150, borderRadius: 16, backgroundColor: '#211C16', paddingHorizontal: 16, paddingVertical: 15, borderWidth: 1, borderColor: '#3A3128', alignSelf: 'center', alignItems: 'center', justifyContent: 'center', gap: 12, shadowColor: '#000000', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
   emptyRideText: { color: '#A99E92', fontSize: 15, fontWeight: '700', textAlign: 'center' },
   visitDescription: { color: '#55727A', fontSize: 15, marginTop: 4 },
@@ -411,4 +442,7 @@ const styles = StyleSheet.create({
   notificationTitle: { color: '#F7F1E9', fontSize: 15, fontWeight: '800', textAlign: 'left' },
   notificationMessage: { color: '#A99E92', fontSize: 13, textAlign: 'left' },
   notificationTime: { color: '#8C8175', fontSize: 12, textAlign: 'right' },
+  routeVeil: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#1A1612', alignItems: 'center', justifyContent: 'center', gap: 14 },
+  routeVeilTitle: { color: '#F7F1E9', fontSize: 17, fontWeight: '800', textAlign: 'left' },
+  routeVeilStep: { color: '#A99E92', fontSize: 13, fontWeight: '500', textAlign: 'left' },
 });

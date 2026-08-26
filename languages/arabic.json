@@ -166,5 +166,11 @@
     ,"trackingInterval": "الفاصل الزمني للتتبع", "trackingIntervalDescription": "معدل التحديث بالثواني"
     ,"unexpectedError": "حدث خطأ غير متوقع"
     ,"tryAgain": "حاول مرة أخرى"
+    ,"loading": "تحميل"
+    ,"route": "مسار"
+    ,"ready": "جاهز"
+    ,"findingBestRoute": "جاري إيجاد أفضل مسار"
+    ,"aligningCamera": "جاري تحديد موقعك"
+    ,"almostThere": "أوشكنا على الانطلاق"
   }
 }
