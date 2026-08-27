@@ -4,7 +4,7 @@
     "slug": "gulf-car-coordinator",
     "version": "9.8.4",
     "runtimeVersion": {
-      "policy": "fingerprint"
+      "policy": "appVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/589aaf84-683c-4cae-8073-6193e8f1d573"
@@ -12,11 +12,11 @@
     "orientation": "portrait",
     "icon": "./assets/icon-light.png",
     "scheme": "gulfcar",
-    "owner": "ahmedsalah998",
+    "owner": "gcorg",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gulfcar.client",
+      "bundleIdentifier": "com.gulfcar.gps",
       "icon": {
         "light": "./assets/icon-light.png",
         "dark": "./assets/icon-dark.png",
@@ -29,7 +29,7 @@
     },
     "android": {
       "predictiveBackGestureEnabled": false,
-      "package": "com.gulfcar.client",
+      "package": "com.gulfcar.gps",
       "icon": "./assets/icon.png",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",

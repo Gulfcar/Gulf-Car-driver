@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Constants from 'expo-constants';
 import MapView, { Marker, PROVIDER_GOOGLE, type UserLocationChangeEvent } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
@@ -10,7 +10,7 @@ import { Archive, Arrow, Bell, Clock, Location, MapAlt, Power, TickCircle, WifiO
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type Order } from '../lib/orders';
-import { useAttendanceStateQuery, useAttendanceToggleMutation, useMovementRequestsQuery } from '../lib/auth';
+import { AuthError, useAttendanceStateQuery, useAttendanceToggleMutation, useMovementRequestsQuery } from '../lib/auth';
 import { i18n } from '../lib/i18n';
 import { useAppLanguage } from '../lib/onboarding';
 
@@ -229,13 +229,13 @@ const HomeScreen = React.memo(function HomeScreen() {
           <Pressable
             style={[styles.onlineButton, isOnline && styles.onlineButtonActive]}
             onPress={() => {
-              attendanceToggle.mutate();
+              attendanceToggle.mutate(undefined, { onError: (error) => Alert.alert(i18n.t('goOnline'), i18n.t(`authError.${error instanceof AuthError ? error.code : 'REQUEST_FAILED'}`, { defaultValue: i18n.t('authError.REQUEST_FAILED') })) });
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }}
             disabled={attendanceToggle.isPending || attendance.isPending}
           >
             {attendanceToggle.isPending ? <ActivityIndicator color={isOnline ? '#FFFFFF' : '#55727A'} /> : isOnline ? <Power size={26} color="#FFFFFF" weight="Outline" /> : <WifiOff size={18} color="#000000" weight="Outline" />}
-            {!isOnline && <Text style={styles.onlineButtonText}>{i18n.t('goOnline')}</Text>}
+            <Text style={[styles.onlineButtonText, isOnline && styles.onlineButtonTextActive]}>{i18n.t(isOnline ? 'goOffline' : 'goOnline')}</Text>
           </Pressable>
         </View>
       </View>
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   onlineButtonAnchor: { position: 'absolute', left: 16, bottom: 75 },
   onlineButtonAnchorCentered: { left: 0, right: 0, alignItems: 'center' },
   onlineButton: { height: 48, paddingHorizontal: 16, borderRadius: 25, borderWidth: 1, borderColor: '#D9DDD9', backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, shadowColor: '#173947', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
-  onlineButtonActive: { width: 48, paddingHorizontal: 0, backgroundColor: '#32882A', borderColor: '#32882A' },
+  onlineButtonActive: { backgroundColor: '#32882A', borderColor: '#32882A' },
   onlineButtonText: { color: '#55727A', fontSize: 16, fontWeight: '800', textAlign: 'left' },
   onlineButtonTextActive: { color: '#FFFFFF' },
   cardsViewport: { height: 190, marginTop: -64, zIndex: 3, elevation: 3 },

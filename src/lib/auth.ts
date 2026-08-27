@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect } from 'react';
@@ -240,6 +241,11 @@ function parseAttendanceState(body: unknown): AttendanceState | null {
   if (typeof value.is_checked_in === 'boolean') return { checked_in: value.is_checked_in };
   if (value.state === 'checked_in' || value.status === 'checked_in') return { checked_in: true };
   if (value.state === 'checked_out' || value.status === 'checked_out') return { checked_in: false };
+  if (value.next_action === 'check_in' || value.next_action === 'check_out') return { checked_in: value.next_action === 'check_out' };
+  if (value.result && typeof value.result === 'object' && (value.result as Record<string, unknown>).action) {
+    const action = (value.result as Record<string, unknown>).action;
+    if (action === 'check_in' || action === 'check_out') return { checked_in: action === 'check_in' };
+  }
   return null;
 }
 
@@ -252,7 +258,14 @@ export async function getAttendanceState(signal?: AbortSignal) {
 }
 
 export async function toggleAttendance() {
-  const response = await authenticatedFetch('/attendance/toggle', { method: 'POST' });
+  const permission = await Location.requestForegroundPermissionsAsync();
+  if (permission.status !== Location.PermissionStatus.GRANTED) throw new AuthError('LOCATION_PERMISSION_REQUIRED', 403);
+  const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+  const response = await authenticatedFetch('/attendance/toggle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': Crypto.randomUUID() },
+    body: JSON.stringify({ latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy }),
+  });
   const body = (await response.json().catch(() => null)) as { ok?: boolean; code?: string } | null;
   const state = parseAttendanceState(body);
   if (!response.ok || !body?.ok || !state) throw new AuthError(body?.code ?? 'REQUEST_FAILED', response.status);
