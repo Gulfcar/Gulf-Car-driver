@@ -112,8 +112,8 @@ async function getHrApiUrl() {
 }
 
 export class AuthError extends Error {
-  constructor(public readonly code: string, public readonly status: number) {
-    super(code);
+  constructor(public readonly code: string, public readonly status: number, message?: string) {
+    super(message || code);
   }
 }
 
@@ -251,9 +251,9 @@ function parseAttendanceState(body: unknown): AttendanceState | null {
 
 export async function getAttendanceState(signal?: AbortSignal) {
   const response = await authenticatedFetch('/attendance/state', { signal });
-  const body = (await response.json().catch(() => null)) as { ok?: boolean; code?: string } | null;
+  const body = (await response.json().catch(() => null)) as { ok?: boolean; code?: string; message?: string } | null;
   const state = parseAttendanceState(body);
-  if (!response.ok || !body?.ok || !state) throw new AuthError(body?.code ?? 'REQUEST_FAILED', response.status);
+  if (!response.ok || !body?.ok || !state) throw new AuthError(body?.code ?? 'REQUEST_FAILED', response.status, body?.message);
   return state;
 }
 
@@ -266,9 +266,9 @@ export async function toggleAttendance() {
     headers: { 'Content-Type': 'application/json', 'Idempotency-Key': Crypto.randomUUID() },
     body: JSON.stringify({ latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy }),
   });
-  const body = (await response.json().catch(() => null)) as { ok?: boolean; code?: string } | null;
+  const body = (await response.json().catch(() => null)) as { ok?: boolean; code?: string; message?: string } | null;
   const state = parseAttendanceState(body);
-  if (!response.ok || !body?.ok || !state) throw new AuthError(body?.code ?? 'REQUEST_FAILED', response.status);
+  if (!response.ok || !body?.ok || !state) throw new AuthError(body?.code ?? 'REQUEST_FAILED', response.status, body?.message);
   return state;
 }
 

@@ -1,8 +1,9 @@
 import { DarkTheme, DefaultTheme, LocaleDirContext, ThemeProvider } from 'expo-router/react-navigation';
 import { StatusBar } from 'expo-status-bar';
-import { AppState, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Alert, AppState, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreenNative from 'expo-splash-screen';
+import * as Updates from 'expo-updates';
 import { useEffect, useState } from 'react';
 
 import { useNotificationObserver } from '../lib/notifications';
@@ -65,6 +66,25 @@ export default function RootLayout() {
   }, [hydrated]);
   useEffect(() => {
     if (ready) SplashScreenNative.hide();
+  }, [ready]);
+  useEffect(() => {
+    if (!ready || !Updates.isEnabled) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (cancelled || !update.isAvailable) return;
+        await Updates.fetchUpdateAsync();
+        if (cancelled) return;
+        Alert.alert(i18n.t('updateAvailable'), i18n.t('updateAvailableMessage'), [
+          { text: i18n.t('later'), style: 'cancel' },
+          { text: i18n.t('updateNow'), onPress: () => void Updates.reloadAsync() },
+        ]);
+      } catch {
+        // Update checks are optional; app continues when update service is unavailable.
+      }
+    })();
+    return () => { cancelled = true; };
   }, [ready]);
   useEffect(() => {
     if (!ready) return;

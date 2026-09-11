@@ -6,7 +6,7 @@ import MapViewDirections from 'react-native-maps-directions';
 import * as ExpoLocation from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { notifyNewMovementRequest } from '../lib/notifications';
-import { Archive, Arrow, Bell, Clock, Location, MapAlt, Power, TickCircle, WifiOff } from 'reicon-react-native';
+import { Archive, Bell, Clock, Location, MapAlt, Power, TickCircle, WifiOff } from 'reicon-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type Order } from '../lib/orders';
@@ -229,7 +229,7 @@ const HomeScreen = React.memo(function HomeScreen() {
           <Pressable
             style={[styles.onlineButton, isOnline && styles.onlineButtonActive]}
             onPress={() => {
-              attendanceToggle.mutate(undefined, { onError: (error) => Alert.alert(i18n.t('goOnline'), i18n.t(`authError.${error instanceof AuthError ? error.code : 'REQUEST_FAILED'}`, { defaultValue: i18n.t('authError.REQUEST_FAILED') })) });
+              attendanceToggle.mutate(undefined, { onError: (error) => Alert.alert(i18n.t('goOnline'), error instanceof AuthError ? error.message : i18n.t('authError.REQUEST_FAILED')) });
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }}
             disabled={attendanceToggle.isPending || attendance.isPending}
@@ -248,13 +248,6 @@ const HomeScreen = React.memo(function HomeScreen() {
       <View style={styles.weekHeader}>
         <Text style={styles.weekTitle}>{i18n.t('thisWeek')}</Text>
         <Text style={styles.weekDates}>{weekDatesLabel}</Text>
-      </View>
-      <View style={styles.notificationsSection}>
-        <Text style={styles.notificationsGroupTitle}>{i18n.t('today')}</Text>
-        <NotificationRow title={i18n.t('notificationRideAssigned')} message={i18n.t('notificationRideAssignedMessage')} time="10:42" />
-        <NotificationRow title={i18n.t('notificationRouteReady')} message={i18n.t('notificationRouteReadyMessage')} time="09:18" />
-        <Text style={[styles.notificationsGroupTitle, styles.earlierTitle]}>{i18n.t('earlier')}</Text>
-        <NotificationRow title={i18n.t('notificationShiftStarted')} message={i18n.t('notificationShiftStartedMessage')} time="Yesterday" />
       </View>
       </ScrollView>
     </View>
@@ -339,19 +332,6 @@ function EmptyRideCard({ width }: { width: number }) {
   </View>;
 }
 
-function NotificationRow({ title, message, time }: { title: string; message: string; time: string }) {
-  return (
-    <View style={styles.notificationRow}>
-      <Arrow size={20} color="#C89A63" weight="Outline" />
-      <View style={styles.notificationCopy}>
-        <Text style={styles.notificationTitle} numberOfLines={1}>{title}</Text>
-        <Text style={styles.notificationMessage} numberOfLines={1}>{message}</Text>
-      </View>
-      <Text style={styles.notificationTime}>{time}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1A1612' },
   header: { height: 154, paddingHorizontal: 18, backgroundColor: '#1A1612' },
@@ -403,12 +383,4 @@ const styles = StyleSheet.create({
   completedLabel: { color: '#F7F1E9', fontSize: 18, fontWeight: '800', textAlign: 'left' },
   completedValue: { color: '#F7F1E9', fontSize: 24, fontWeight: '800' },
   divider: { height: 2, backgroundColor: '#3A3128', marginHorizontal: 18, marginTop: 18 },
-  notificationsSection: { marginHorizontal: 18, marginTop: 28, paddingBottom: 28 },
-  notificationsGroupTitle: { color: '#F7F1E9', fontSize: 18, fontWeight: '800', marginBottom: 10, textAlign: 'left' },
-  earlierTitle: { marginTop: 24 },
-  notificationRow: { minHeight: 68, borderBottomWidth: 1, borderBottomColor: '#3A3128', flexDirection: 'row', alignItems: 'center', gap: 12 },
-  notificationCopy: { flex: 1, gap: 3 },
-  notificationTitle: { color: '#F7F1E9', fontSize: 15, fontWeight: '800', textAlign: 'left' },
-  notificationMessage: { color: '#A99E92', fontSize: 13, textAlign: 'left' },
-  notificationTime: { color: '#8C8175', fontSize: 12, textAlign: 'right' },
 });
